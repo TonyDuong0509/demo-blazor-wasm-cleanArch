@@ -1,6 +1,5 @@
-using ApplicationLayer.Contracts;
 using InfrastructureLayer.Data;
-using InfrastructureLayer.Implementation;
+using InfrastructureLayer.Handlers.EmployeeHandler;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Net.Http.Headers;
 
@@ -14,7 +13,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>
     (x => x.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Services.AddScoped<IEmployee, EmployeeRepo>();
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(GetEmployeeListHandler).Assembly));
 
 var app = builder.Build();
 
