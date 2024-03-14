@@ -1,0 +1,124 @@
+﻿@page "/"
+@using ApplicationLayer.Services
+@using DomainLayer.Entities
+@using NetcodeHub.Packages.Components.Validations.OnInput
+@using NetcodeHub.Packages.Components.Toast
+@using NetcodeHub.Packages.Components.Modal
+
+@inject IEmployeeService employeeService
+@inject ToastService toastService
+
+<PageTitle>Home</PageTitle>
+
+<div class="row">
+    <div class="col-lg-6">
+        <EditForm Model="employee" OnValidSubmit="Save">
+            <DataAnnotationsValidator />
+            <FloatingText @bind-Value="employee.Name"
+                          Label="Custom Fullname"
+                          Placeholder="Francis Duong"
+                          class="form-control mb-3" />
+            <ValidationMessage For="()=>employee.Name" />
+
+            <FloatingTextArea @bind-Value="employee.Address"
+                              Label="Custom Address"
+                              Placeholder="SaiGon"
+                              class="form-control mb-3" />
+            <ValidationMessage For="()=>employee.Address" />
+
+            <button class="btn btn-primary mt-5 mb-5" type="submit">Save</button>
+        </EditForm>
+    </div>
+
+    <div class="col-lg-6">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Address</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Employees is not null)
+                {
+                    foreach (var employee in Employees)
+                    {
+                        <tr>
+                            <td>@employee.Id</td>
+                            <td>@employee.Name</td>
+                            <td>@employee.Address</td>
+                            <td>
+                                <button class="btn btn-info btn-sm" @onclick="() => EditClicked(employee)">Edit</button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteClicked(employee.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<Confirmation @ref="confirmation"
+              Instruction="@Instruction"
+              Action="Handle"
+              BoostrapClass="border-danger"
+              CustomStyle="width: 300px;" />
+<Toast Duration="@duration" Persist=true @ref="toastService.ToastComponent" />
+
+@code {
+    Confirmation? confirmation;
+    string Instruction = "Bạn có chắc chắn là muốn xoá không ?";
+    int duration = 4000;
+    Employee employee = new();
+
+    async Task Save()
+    {
+        var response = new ApplicationLayer.DTOs.ServiceResponse(false, null);
+        if (employee.Id > 0)
+        {
+            response = await employeeService.UpdateAsync(employee);
+        }
+        else
+        {
+            response = await employeeService.AddAsync(employee);
+        }
+
+        if (!response.Flag)
+        {
+            duration = 5000;
+            toastService.ShowErrorToast("Alert", response.Messaage);
+            return;
+        }
+
+        toastService.ShowSuccessToast("Success", response.Messaage);
+        await GetData();
+    }
+
+    List<Employee> Employees = new();
+    protected override async Task OnInitializedAsync() => await GetData();
+
+    private async Task GetData() => Employees = await employeeService.GetAsync();
+
+    void EditClicked(Employee incomEmployee) => employee = incomEmployee;
+
+    async void DeleteClicked(int id)
+    {
+        DeleteId = id;
+        await confirmation!.Show();
+    }
+
+    public int DeleteId { get; set; }
+    async Task Handle()
+    {
+        if (DeleteId == 0) return;
+
+        var (flag, message) = await employeeService.DeleteAsync(DeleteId);
+        await GetData();
+        DeleteId = 0;
+        StateHasChanged();
+    }
+}
